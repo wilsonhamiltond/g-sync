@@ -1,0 +1,6 @@
+{
+    "client_secret": "{{ secret client path }}",
+    "token_secret": "{{ secret token path }}",
+    "root_directory": "{{ directory to sync }}",
+    "drive_folder_id" : "{{ google folder key }}"
+}

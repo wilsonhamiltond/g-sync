@@ -1,0 +1,22 @@
+{
+  "name": "GSync",
+  "version": "0.0.1",
+  "scripts": {
+    "ng": "ng",
+    "start": "node server/index.js",
+    "watch": "tsc --p .\\tsconfig.json --watch"
+  },
+  "private": true,
+  "dependencies": {
+    "config": "^1.30.0",
+    "googledrive": "^3.0.9",
+    "mime-types": "^2.1.18"
+  },
+  "devDependencies": {
+    "@types/config": "0.0.34",
+    "@types/node": "^10.5.1",
+    "ts-node": "~5.0.1",
+    "tslint": "~5.9.1",
+    "typescript": "~2.7.2"
+  }
+}
