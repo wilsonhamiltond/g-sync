@@ -1,6 +1,6 @@
 {
-    "client_secret": "{{ secret client path }}",
-    "token_secret": "{{ secret token path }}",
-    "root_directory": "{{ directory to sync }}",
-    "drive_folder_id" : "{{ google folder key }}"
+    "client_secret": "secrets\\client.json",
+    "token_secret": "secrets\\token.json",
+    "root_directory": "C:\\databases\\backup\\gsync",
+    "drive_folder_id" : "1fsnjDoziANwR2Q8DQxckDLJXbe1d-_Bs"
 }

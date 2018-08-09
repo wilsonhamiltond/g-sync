@@ -1,10 +1,10 @@
 
 import { get } from 'config';
-import { join, extname } from 'path';
-import { writeFileSync, statSync, createReadStream, readFileSync, existsSync, watch } from 'fs';
+import { join } from 'path';
+import { writeFileSync, readFileSync, existsSync, watch } from 'fs';
 import { createInterface } from 'readline';
+import { SyncModel } from './models/sync.model';
 const GoogleDrive = require("googledrive");
-const mime = require('mime-types')
 
 class AppServer {
     app_patch: string;
@@ -12,6 +12,8 @@ class AppServer {
     token_secret_path: string;
     root_directory: string;
     dive_folder_id: string;
+    googleDrive: any;
+    syncModel: SyncModel;
     constructor() {
         this.config()
         this.services()
@@ -25,21 +27,47 @@ class AppServer {
         this.dive_folder_id = get('drive_folder_id');
     }
 
-    services() {
+    async services() {
+        let client = null,
+            token = null;
+
+        client = JSON.parse(readFileSync(this.client_secret_path, "utf8"));
+
+        if (existsSync(this.token_secret_path)) {
+            try {
+                token = JSON.parse(readFileSync(this.token_secret_path, "utf8"));
+            } catch (err) {
+                // Nothing
+            }
+        }
+        
+        this.googleDrive = new GoogleDrive({
+            client: client,
+            token: token
+        });
+        if (!existsSync(this.token_secret_path))
+            await this.get_token();
+
+        this.syncModel = new SyncModel(this.googleDrive);
     }
 
-    run(): any {
-        watch(this.root_directory, { encoding: 'utf8' }, (eventType, filename) => {
-            if (filename && eventType == 'rename') {
-                console.log(filename);
-                this.file_sync(filename)
+    async run() {
+        await watch(this.root_directory, { 
+            encoding: 'utf8',
+            recursive: true 
+        }, async (eventType, filename) => {
+            if (filename){
+                await this.syncModel.file_sync(filename, eventType);
             }
         });
     }
 
-    private async get_token( googleDrive:any ) {
-        // Authorize
-        const authUrl = googleDrive.generateAuthUrl();
+    private async get_token( ) {
+        this.googleDrive.on("token", (_token: any) => {
+            writeFileSync(this.token_secret_path, JSON.stringify(_token));
+        });
+        
+        const authUrl = this.googleDrive.generateAuthUrl();
 
         const code = await new Promise((resolve, reject) => {
             console.log(`Authorize URL: ${authUrl}`);
@@ -58,53 +86,11 @@ class AppServer {
                 resolve(answer);
             });
         });
-        await googleDrive.getToken(code);
+        await this.googleDrive.getToken(code);
     }
 
-    private async file_sync(filename: string) {
-        let client = null,
-            token = null,
-            file_path: string = join(this.root_directory, filename);
-
-        client = JSON.parse(readFileSync(this.client_secret_path, "utf8"));
-        if (existsSync(this.token_secret_path)) {
-            try {
-                token = JSON.parse(readFileSync(this.token_secret_path, "utf8"));
-            } catch (err) {
-                // Nothing
-            }
-        }
-
-        const googleDrive = new GoogleDrive({
-            client: client,
-            token: token
-        });
-
-        googleDrive.on("token", (_token: any) => {
-            writeFileSync(this.token_secret_path, JSON.stringify(_token));
-        });
-        if (token === null) {
-            await this.get_token(googleDrive);
-        }
-
-        // Get root folder
-        const rootFolder = await googleDrive.getFolderById(this.dive_folder_id);
-
-        // Create child file (File has not been created yet)
-        const file = rootFolder.createChildFile({
-            name: filename,
-            mimeType: mime.contentType(extname(file_path))
-        });
-
-        // Resumable upload
-        await file.resumableCreate({
-            contentLength: statSync(file_path).size,
-            readableCallback: (position: any) => createReadStream(file_path, { start: position })
-        });
-    }
-
-    public static bootstrap() {
-        return new AppServer().run();
+    public static async bootstrap() {
+        return await new AppServer().run();
     }
 }
 
